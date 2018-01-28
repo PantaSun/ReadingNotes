@@ -115,16 +115,35 @@
 
 - 将迭代器从一个元素移动到另一个元素。要注意的是：end 返回的迭代器并不实际指向某个元素，因此不能对其进行递增或解引用。
 
-- 迭代器类型：用 iterator 和 const_iterator 来表达迭代器的类型，其中const_iterator 和常量指针差不多，能读取但不能修改它所指的元素值；而 iterator 既能读又能写。如果对象只需要读操作无须写操作的话最好使用常量类型。
+- 迭代器类型：用 iterator 和 const_iterator 来表达迭代器的类型:
+
+  ```c++
+  // it 能读写vector<int>的元素
+  vector<int>::iterator it;
+  // it2 能读写string对象中的字符
+  string::iterator it2;
+
+  // it3 只能读元素，不能写元素
+  vector<int>::const_iterator it3;
+  // it4 只能读字符，不能写字符
+  string::const_iterator it4;
+  ```
+
+  其中const_iterator 和常量指针差不多，能读取但不能修改它所指的元素值；而 iterator 既能读又能写。如果对象只需要读操作无须写操作的话最好使用常量类型。
+
+  ```c++
+  const vector<int> cv;
+  auto it5 = cv.begin(); // 这里it5的类型是vector<int>::const_iterator
+  ```
+
+  ​
 
 - C++11新标准：引入了两个新的函数：cbegin 和 cend，和原来两个函数的区别如下：也就是说无论vector 对象本身是否是常量，这两个新函数的返回值都是 const_iterator。
 
   ```c++
-  const vector<int> v1;
   vector<int> v2;
-  auto it1 = v1.begin(); 	// it1 的类型是 vector<int>::iterator
-  auto it2 = v1.cbegin();	// it2 的类型是 vector<int>::const_iterator
-  auto it3 = v2.begin();  // it3 的类型是 vector<int>::const_iterator
+  auto it1 = v2.begin(); 	// it1 的类型是 vector<int>::iterator
+  auto it2 = v2.cbegin();	// it2 的类型是 vector<int>::const_iterator
   ```
 
 - 结合解引用和成员访问操作

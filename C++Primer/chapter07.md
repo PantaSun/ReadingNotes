@@ -60,3 +60,107 @@
 
 #### 7.1.4 构造函数
 
+- 构造函数：类通过一个或几个特殊的成员函数来控制其对象的初始化过程，这些函数叫构造函数。无论何时只要类的对象被创建，就会执行构造函数。**构造函数的任务**是初始化类对象的数据成员。
+
+- 构造函数没有返回类型。
+
+- 默认构造函数：当没有人为的显示的定义构造函数时，编译器会隐式地定义一个默认构造函数。
+
+- 编译器构造的函数又被称为**合成的默认构造函数**，该函数将按照如下规则初始化类的数据成员:
+
+  - 如果存在类内初始值，用它来初始化成员。
+  - 否则，默认初始化该成员。
+
+- 编译器只有在类没有声明任何构造函数时才会自动生成默认构造函数。
+
+- 如果类内包含内置类型或复合类型的成员，则只有当这些成员全被赋予了类内的初始值时，这个值才适用于合成的默认构造函数。
+
+- 编译器不能包含一个其他类类型的成员并且这个成员的类型没有默认构造函数的类合成默认的构造函数。
+
+- 定义`Sales_data` 的构造函数：
+
+  ```c++
+  struct Sales_data{
+    Sales_data() = default;
+    Sales_data(const std::string &s):bookNo(s){ }
+    Sales_data(const std::string &s, unsigned n, double p):bookNo(s), units_sold(n), revenue(p*n){ }
+    Sales_data(std::istream &);
+    // 以下为原来已有的其他成员
+  }
+  ```
+
+  其中`Sales_data() = default;`不接受任何参数，因此它是一个默认构造函数。定义这个函数的目的是因为这里既需要其他形式的构造函数，也需要默认的构造函数；当有其他构造函数存在时，如果不显示定义默认构造函数，编译器是不会隐式定义默认构造函数的。
+
+  ​
+
+  在上述代码中第二个和第三个构造函数的冒号和花括号之间的部分被称为**构造函数初值列表**，其作用是为新创建的对象的一个或几个数据成员赋初值。这两个函数的函数体是空的，因为构造函数的唯一目的就是为数据成员赋初值。
+
+  **定义在类外部的构造函数**： 第四个构造函数与第二个和第三个构造函数不同，它是以`istream`为参数的构造函数，所以需要执行一些实际操作，在它的函数体内调用了`read`函数
+
+  ```c++
+  Sales_data::Sales_data(std::istream &is){
+    read(is, *this);
+  }
+  // 这里先把 Sales_data::Sales_data 看成一个在类内声明，在类外实现的成员函数，即定义了一个 Sales_data 类的成员，它的名字是Sales_data。因为该成员函数的名字和类的名字相同，所以它是一个构造函数。
+  ```
+
+  ​
+
+### 7.2 访问控制与封装
+
+- 在C++ 中使用访问说明符加强类的封装：
+
+  - 定义在`public` 说明符后的成员在整个程序内可以被访问，`public`成员定义了类的接口。
+  - 定义在`private`说明符后的成员可以被类的成员函数访问，但不能被使用该类的代码访问，`private`部分封装了（即隐藏了）类的实现细节。
+
+- 新版`Sales_data`类:
+
+  ```c++
+  class  Sales_data{
+    public:
+    	Sales_data() = default;
+    	Sales_data(const std::string &s):bookNo(s){ }
+    	Sales_data(const std::string &s, unsigned n, double p):bookNo(s), units_sold(n), revenue(p*n){ }
+    	Sales_data(std::istream &);
+    	std::string isbn() const { return bookNo; }	
+    	Sales_data &combins(const Sales_data); 		
+    private:
+  	double avg_price() const{return units_sold ? revenue/units_sold : 0;}     
+    	// 数据成员
+    	std::string bookNo;
+    	unsigned units_sold = 0;
+    	double revenue = 0.0;
+  }
+  ```
+
+- **`class`关键字：**这里用`class`代替了原来的`struct`。其实这两个关键字的唯一区别就是默认的访问权限不一样。`class`的默认访问权限是`private`，`struct`的默认访问权限是`public`。
+
+#### 7.2.1 友元
+
+- 当有类外非成员接口函数要操作类内`private`权限的数据成员时，要通过`friend`关键字将这些函数声明成友元：
+
+  ```c++
+  class  Sales_data{
+    friend Sales_data add(const Sales_data&, const Sales_data&);
+    friend std::istream &read(std::istream&, Sales_data&);
+    public:
+    	Sales_data() = default;
+    	Sales_data(const std::string &s):bookNo(s){ }
+    	Sales_data(const std::string &s, unsigned n, double p):bookNo(s), units_sold(n), revenue(p*n){ }
+    	Sales_data(std::istream &);
+    	std::string isbn() const { return bookNo; }	
+    	Sales_data &combins(const Sales_data); 		
+    private:
+  	double avg_price() const{return units_sold ? revenue/units_sold : 0;}     
+    	// 数据成员
+    	std::string bookNo;
+    	unsigned units_sold = 0;
+    	double revenue = 0.0;
+  }
+  Sales_data add(const Sales_data&, const Sales_data&);
+  std::istream &read(std::istream&, Sales_data&);
+  ```
+
+- 友元不是类的成员函数，所以不受它所在的类内的位置区域的访问控制级别约束。
+
+- 友元在类内的声明仅仅指定了访问的权限，不是通常意义上的函数声明，所以如果用到某个函数时应在类外专门再对函数声明一次。

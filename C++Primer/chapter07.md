@@ -405,50 +405,82 @@
       contents[r*width + c] = ch;  
       return *this;  
   }  
+  int main(){
+      /* code */
+      Screen myScreen(5, 5, 'X');
+      myScreen.move(4, 0).set('#');
+      cout << endl;
+      myScreen.display(cout);
+      cout << endl; 
+      return 0;
+  }
+  /*输出结果：
+    panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ g++ test1.cpp 
+    panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ ./a.out 
+
+    XXXXXXXXXXXXXXXXXXXX#XXXX
+    panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ 
+  */
+  ```
 
 
-  int main()
-  {
-    /* code */
-    Screen myScreen(5, 5, 'X');
-    myScreen.move(4, 0).set('#');
-    cout << endl;
-    myScreen.display(cout);
-    cout << endl; 
-    return 0;
+ 
+
+#### 7.3.3 类类型  
+
+- 每个类的类型是唯一的，即使两个类的成员列表完全一致，它们也是不同的类型。
+- 类的声明：
+  - 前向声明：仅声明类而暂时不定义它。例如`class Screen； `只是向程序里引入`Screen`，并指明`Screen`是一中类类型。而`Screen`在被定义之前是一个不完全类型，即不知道该类包含哪些成员。
+  - 不完全类型使用情景：可以定义指向这中类型的指针或引用，也可以声明以不完全类型作为参数或者返回类型的函数。
+
+#### 7.3.4 友元再探
+
+- 友元的定义：
+
+  - 类不仅可以把普通的非成员函数定义成友元，
+  - 还可以把其他类定义为友元，
+  - 也可以把其他类的成员函数定义成友元。
+  - 此外，友元函数能定义在类的内部，这样的函数是隐式内联的。
+
+- 类之间的友元关系：如果A类的某些成员要访问B类的内部数据，则可以把A类指定成B类的友元：
+
+  ```c++
+  class Screen{
+  	// Window_mgr 的成员可以访问 Screen 类的私有部分
+  	friend class Window_gmr;
   }
   ```
 
-  输出结果：
+  ```c++
+  class Window_mgr{
+  	public:
+  		using ScreenIndex = std::vector<Screen>::size_type;
+  		void clear(ScreenIndex);
+  	private:
+  		std::vector<Screen> screens{Screen(24, 80, ' ')};
+  	
+  }
 
+  void Window_mgr::clear(ScreenIndex i){
+  	Screen &s = screens[i];
+  	s.contents = string(s.height * s.width, ' ');
+  }
   ```
-  panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ g++ test1.cpp 
-  panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ ./a.out 
 
-  XXXXXXXXXXXXXXXXXXXX#XXXX
-  panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ 
+  - 如果一个类指定了友元类，则友元类的成员函数可以访问**此类包括非公有成员在内的所有成员**。
+  - 友元不具有传递性，即如果`Window_mgr`有自己的友元类，那么这些友元并不能理所当然的访问`Screen`类。
+  - 每个类负责控制自己的友元类或友元函数。
 
+- 令成员函数作为友元：一个A类可以只为某个B类的某个成员函数提供访问权限，不用向整个B类提供访问权限。
+
+  ```c++
+  class Screen{
+  	// Window_mgr::clear 必须在Screen类之前被声明
+  	friend void Window_mgr::clear(ScreenIndex);
+  }
   ```
 
-
-
-#### 7.3.3 类类型
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  ​
 
 
 

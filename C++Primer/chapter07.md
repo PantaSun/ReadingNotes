@@ -49,50 +49,46 @@
 - 引入`const`（常量）成员函数：
 
   - 在默认情况下`this`的类型是指向类类型非常量版本的常量指针，因此不能将`this`绑定到一个常量对象上，也就使得我们不能在一个常量对象上调用普通的成员函数。
-
-
   - 在`isbn`函数参数列表后面的`const`关键字的作用是修改隐式`this`指针的类型。
-
   - 由上述代码可知`isbn`是一个常量成员，因此该函数中的隐式`this`是指向常量的指针，所以常量成员函数不能修改调用它的对象的内容。也就是`isbn`可以读取调用它的对象的数据成员，但不能写入新值。
-
   - `isbn`函数表达的意思如下：但这只是伪码，因为不能显示的定义自己的`this`指针。
 
-    ```c++
-    std::string Sales_data::isbn(const Sales_data *const this){return this->isbn;}  
-    ```
-
+  ```c++
+  std::string Sales_data::isbn(const Sales_data *const this){return this->isbn;}  
+  ```
 
   - 常量对象，以及常量对象的引用或指针都只能调用常量成员函数。不能在一个常量对象上调用普通的成员函数。
-
   - **引入常量成员函数作用**： 常量成员函数即可以被常量对象调用，也可以被普通对象调用；而普通成员函数只能被普通对象调用，不能被常量对象调用。因此把`this`设置为指向常量的指针有助于提高函数灵活性。
 
-    ```c++
-     #include<iostream>
-      using std::cin;
-      using std::cout;
-      using std::endl;
-      int main(){
-      	class test{
-      	public:
-      		int func1(){return 11;}
-      		int func2() const {return 12;};	
-      	};
-      	test A;
-      	cout << A.func1() << endl;
-      	cout << A.func2() << endl;
+  ```c++
+   #include<iostream>
+    using std::cin;
+    using std::cout;
+    using std::endl;
+    int main(){
+    	class test{
+    	public:
+    		int func1(){return 11;}
+    		int func2() const {return 12;};	
+    	};
+    	test A;
+    	cout << A.func1() << endl;
+    	cout << A.func2() << endl;
 
-      	const test B;
-      	//cout << B.func1() << endl; 
-          // 会报错如下：
-        	/* error: passing ‘const main()::test’ as ‘this’ argument discards   	  qualifiers [-fpermissive]
-        cout << B.func1() << endl;                  ^
-        即上文所说：在默认情况下this的类型是指向类类型非常量版本的常量指针，因此不能将默认的this绑定到一个常量对象上，也就使得我们不能在一个常量对象上调用普通的成员函数。
-      */
-      	cout << B.func2() << endl;
+    	const test B;
+    	//cout << B.func1() << endl; 
+        // 会报错如下：
+      	/* error: passing ‘const main()::test’ as ‘this’ argument discards   	  qualifiers [-fpermissive]
+      cout << B.func1() << endl;                  ^
+      即上文所说：在默认情况下this的类型是指向类类型非常量版本的常量指针，因此不能将默认的this绑定到一个常量对象上，也就使得我们不能在一个常量对象上调用普通的成员函数。
+    */
+    	cout << B.func2() << endl;
 
-      	return 0;
-      }
-    ```
+    	return 0;
+    }
+  ```
+
+  ​
 
 
 - 类作用域和成员函数
@@ -480,8 +476,78 @@
   }
   ```
 
-  ​
+- 友元声明和作用域
 
+  - 友元的声明影响访问权限，并非普通意义上的声明。
+
+
+### 7.4 类的作用域
+
+- 一方面，当类的成员函数定义在类外时，必须在函数名之前提供类名。在类的外部，成员的名字被隐藏起来了。这样的话，我们可以在这个类外成员函数的定义中可以直接使用类的其他成员而不用再次授权。
+
+  ```c++
+  void Window_mgr::clear(ScreenIndex i){
+  	Screen &s = screens[i];
+      s.contents = string(s.height * s.width,' ');
+  }
+  // 这里的ScreenIndex 和 screens都是Window_mgr的成员，所以可以直接使用
+  ```
+
+- 另一方面，函数的返回类型通常出现在函数名之前，当成员函数定义在类外部时，返回类型中使用的名字都位于类的外部，这时返回类型就必须指明他是那个类的成员。
+
+  ```c++
+  class Window_mar{
+  	public:
+    		// 向窗口添加一个Screen，并返回它的编号
+  		ScreenIndex addScreen(const Screen&);
+    	// 其他成员与之前一样
+  }
+
+  Window_mgr::ScreenIndex Window_mgr::addScreen(const Screen &s){
+  	screens.push_back(s);
+  	return screen.size() - 1;
+  }
+  ```
+
+#### 7.4.1 名字查找与类的作用域
+
+- 编程中的名字查找
+  - 先在名字所在块中寻找其声明语句，只考虑在使用前出现的声明
+  - 如果没找到继续查找外层作用域
+  - 如果最终没找到匹配的声明，则程序报错
+
+
+- 类内部成员函数名字的解析与上述查找规则有所区别，类的定义分两步处理：
+
+  - 首先，编译成员的声明
+  - 直到全部可见后才编译函数体
+  - ps：编译器处理完类中的全部声明后才会处理成员函数的定义
+
+- 用于类成员声明的名字查找：
+
+  - 上述的两阶段处理方式只适用于成员你函数中使用的名字
+  - 关于声明中使用的名字，包括返回类型或则参数列表中使用的名字，都必须在使用前确保可见
+
+  ```c++
+  typedef double Money;
+  std::string bal;
+
+  class Account{
+  	public:
+  		Money blance() {return bal;}
+    	
+    	private:
+    		Money bal;
+  };
+  // 这里当编译器看到 blance 函数的声明时，先在 Account 中查找 Money 的声明，没找到就去外层作用域找，最终找到 Money 的 typedef 语句。而balance函数的返回类型和数据成员bal也都是Money类型的。
+  // blance 函数体在整个类被处理后才可见，所以 return 返回的是类中名为 bal 的成员，而不是类外 string 类型的 bal
+  ```
+
+- 类型名要特殊处理：类中成员如果使用了外层作用域中的代表某一类型的名字，则类之后不能重新定义该名字。即使该名字的重新定义的类型与外层作用域中所定义的类型一样。
+
+- ​
+
+### 7.5 构造函数再探
 
 
 

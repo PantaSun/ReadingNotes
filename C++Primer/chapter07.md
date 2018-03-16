@@ -13,7 +13,7 @@
 
 #### 7.1.2 定义改进的Salas_data类
 
-- 成员函数的定义必须在类的内部，它的定义则既可以在在类的内部，也可以在类的外部。
+- 成员函数的声明必须在类的内部，它的定义则既可以在在类的内部，也可以在类的外部。
 
   ```c++
   struct Sales_data{
@@ -525,7 +525,7 @@
 
 - 用于类成员声明的名字查找：
 
-  - 上述的两阶段处理方式只适用于成员你函数中使用的名字
+  - 上述的两阶段处理方式只适用于成员函数中使用的名字
   - 关于声明中使用的名字，包括返回类型或则参数列表中使用的名字，都必须在使用前确保可见
 
   ```c++
@@ -545,20 +545,120 @@
 
 - 类型名要特殊处理：类中成员如果使用了外层作用域中的代表某一类型的名字，则类之后不能重新定义该名字。即使该名字的重新定义的类型与外层作用域中所定义的类型一样。
 
-- ​
+- 成员函数定义中普通块作用域的名字查找：
+
+  - 先在成员函数内查找，即只有在函数使用之前出现的声明才会被考虑。
+  - 若成员函数内部没有就在类内继续查找，这时候就要考虑类内所有成员。
+  - 如果类内也没有，那就在成员函数定义之前的所用域内继续查找。
+
+- 如果成员函数需要外层作用域的名字，则可以显示的通过作用域运算符`::`来进行请求，如下测试。
+
+  ```c++
+  #include<iostream>
+  #include <typeinfo>
+  using std::cin;
+  using std::cout;
+  using std::endl;
+
+  typedef std::string Type;
+  Type initVal();
+
+  class Exercise{
+  	public:
+  		typedef double Type;
+  		Type setVal(Type parm);
+  		Type initVal(){
+  			::Type s1 = "initVal()"; 
+  			cout << s1 << endl;
+  			return val; }
+  	private:
+  		Type val = 0.0;
+  };
+
+  Exercise::Type Exercise::setVal(Type parm){
+  	val = parm + initVal();
+  	::Type s2 = "setVal()";
+  	cout << s2 << endl;
+  	return val;
+  }
+
+  int main(){
+  	Exercise A;
+  	cout << A.setVal(10) << endl;
+  	
+  	return 0;
+  }
+  /*
+  输出如下：
+  panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ g++ 7.35.cpp 
+  panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ ./a.out 
+  initVal()
+  setVal()
+  10
+  panta@panta-PC:/media/panta/0AAF058E0AAF058E/ReadingNotes/C++Primer$ 
+  */
+  ```
+
+  ​
 
 ### 7.5 构造函数再探
 
+#### 7.5.1 构造函数初始值列表
 
+- 如果成员是`const`或是引用的话，就必须将其初始化；同理，如果成员属于某种类类型且该类没有默认构造函数时，也必须将这个成员初始化。而且必须通过构造函数初始值列表来为这些成员初始化。
+- 我们初始化`const`或引用类型的数据成员的唯一机会就是通过构造函数初始值。
+- 成员初始化的顺序与它们在类定义中出现的顺序一致。
+- 一般来说成员初始化的顺序没有特别的要求，但是如果成员`a`的是用成员`b`来初始化的，那么就需要成员`b`先于成员`a`进行初始化。
+- c++11 新标准可以定义委托构造函数：一个构造函数把它自己的一些（或全部）职责委托给了其他构造函数。
 
+#### 7.5.4 隐式的类类型转换
 
+- 如果构造函数只接受一个实参，则它实际上定义了转换为此类类型的隐式转换机制。
 
+- 能通过一个实参调用的构造函数定义了一条从构造函数的参数类型向类类型隐式转换的规则。
 
+  ```c++
+  string null_book = "9-999-99999-9";
+  item.combine(null_book);
+  ```
 
+  这里`item`是一个`Sales_data`对象，这种调用是合法的，编译器用给定的`string`自动创建一个`Sales_data`对象。
 
+- 只允许一步类类型转换，如下代码是错误的，因为它执行了两步隐式转换：先将`"9-999-99999-9"`转换成`string`，再将`string`转换成`Sales_data`：
 
+  ```c++
+  item.combine("9-999-99999-9");
+  ```
 
+- 抑制构造函数的隐式转换：可以通过将构造函数声明为`explicit`来阻止隐式转换。这个关键字只对一个实参的构造函数有用，因为多个实参的构造函数本身就不能用于执行隐式转换。
 
+- 当用`explicit`关键字来声明构造函数时，它将只能以直接初始化的形式使用，而不能用于拷贝形式的初始化。
 
+  ```c++
+  Sales_data item1(null_book);  // 正确
+  Sales_data item2 = null_book; // 错误，不能用于拷贝形式的初始化
+  ```
 
+#### 7.5.5 聚合类
+
+- 聚合类使用户可以直接访问其成员，并有特殊的初始化语法：
+
+  - 所有成员都是`public`
+  - 没有定义任何构造函数
+  - 没有类内初始值
+  - 没有基类，也没有`virtual`函数
+
+  ```c++
+  // 一个聚合类
+  struct Data{
+    int ival;
+    string s;
+  }
+  // 初始化聚合类，注意初始值的顺序要与声明的顺序一致
+  Data val1 = {0, "Anna"};
+  ```
+
+  ​
+
+### 7.6 类的静态成员
 

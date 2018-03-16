@@ -6,15 +6,22 @@ int main(){
 	class test
 	{
 		public:
-			int func1(){return 11;}
-			int func1() const {return 12;}	
+			typedef std::string::size_type pos;
+			void dummy_fcn(pos height){
+				cursor = width * height;
+			}
+			pos get_cursor(){
+				return cursor;
+			}
+		private:
+			pos cursor = 0;
+			pos height = 0;
+			pos width = 0;
 	};
 
 	test A;
-	const test B;
-
-	cout << "A.func1():" << A.func1() << endl;
-	cout << "B.func1():" << B.func1() << endl;
+	A.dummy_fcn(10);
+	cout << A.get_cursor();
 	
 	return 0;
 }

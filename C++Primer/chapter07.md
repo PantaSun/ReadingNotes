@@ -662,3 +662,56 @@
 
 ### 7.6 类的静态成员
 
+- 声明静态成员：
+
+  ```c++
+  class Account{
+  	public:
+    		void calculate() {amount += amout * interestRate;}
+    		static double rate() {return interestRate;}
+    		static void rate(double);
+      private:
+    		std::string owner;
+    		double amount;
+    		static double interestRate;
+    		static double initRate();
+  };
+  void Account::rate(double newRate){
+    interestRate = newRate;
+  }
+  ```
+
+  ​
+
+  - 在成员的声明前加上`static`关键字，这样就能使该成员与类关联在一起，而不与类的各个对象保持关联（和‘与类关联’相对应的是与类的各个对象关联）。
+  - 类的静态成员存在于任何对象之外，对象中不包含任何与静态数据成员有关的数据。
+  - 静态成员也不和任何对象绑定到一起，它们不包含`this`指针。
+  - 静态成员不能声明成`const`的。
+  - 不能在`static`成员函数体内使用`this`指针。
+
+- 使用类的静态成员：
+
+  - 使用作用域运算符直接访问静态成员`double r = Account::rate();`
+  - 虽然静态成员不属于类的某个对象，但仍可以使用类的对象、引用和指针来访问静态成员：
+
+  ```c++
+  Account act1;
+  Account act2* = &act1;
+
+  r1 = act1.rate();
+  r2 = act2->rate();
+  ```
+
+  - 类中成员成员函数就不用作用域运算符直接就能使用静态成员。
+
+- 定义静态成员：
+
+  - 和其他成员函数一样，静态成员函数既可以在类内定义也可以在类外定义。
+  - 静态成员不是由类的构造函数初始化的，因为他们并不是在类创建对象时被定义的。
+  - 必须在类的外部定义和初始化每个静态成员。且一个静态数据成员只能定义一次。
+
+  ```c++
+  double Account::interestRate = initRate();
+  ```
+
+  - 上述代码中，从类名开始这条语句的剩下部分就都位于类的作用域内了，因此这里可以使用类的私有函数`initRate()`。

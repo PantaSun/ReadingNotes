@@ -118,3 +118,117 @@
   - 如果两个容器都不是另一个容器的前缀子序列，则它们的比较结果取决于第一个不相等的元素的比较结果。
 - 只有当容器中元素类型也定义了相应的比较运算符时，才可以使用关系运算符比较两个容器。
 
+
+
+### 顺序容器操作
+
+#### 添加元素
+
+- 向容器添加元素的操作：
+  - forward_list有自己专有版本的insert和emplace
+  - forwa_list不支持push_back和emplace_back
+  - vector 和string 不支持push_front 和 emplace_front
+  - c.push_back(t); c.emplace_back(args); 在c的尾部创建一个值为t或由args创建的元素，返回void
+  - c.push_front(t); c.emplace_front(args); 在c的头部创建一个值为t或由args创建的元素，返回void
+  - c.insert(p,t); c.emplace(p,args); 在迭代器p指向的元素之前创建一个值为t或由args创建的元素。返回指向新添加的元素的迭代器。
+  - c.insert(p, n, t); 在迭代器p指向的元素之前插入n个值为t的元素。返回指向新添加的第一个元素的迭代器；若n为0，则返回p。
+  - c.insert(p, b, e); 在迭代器p指向的元素之前插入迭代器b和e指定的范围内的元素。返回指向新添加的第一个元素的迭代器；若范围为空，则返回p。
+  - c.insert(p, il); il是一个花括号包围的元素值列表。将这些给定值插入到迭代器p指向的元素之前。返回指向新添加的第一个元素的迭代器。若列表为空，则返回p。
+- 当用对象来初始化容器时，或将一个对象插入到容器中时，实际上放入到容器中的是对象值的一个拷贝，而不是对象本身。容器中的元素与提供值的对象之间没有任何关联。随后对容器中元素的任何改变都不会影响到原始对象。
+- emplace操作：新标准引入的三个新成员
+  - emplace不是将对象拷贝到容器中。
+  - 当调用一个emplace成员函数时，则会将参数传递给元素类型的构造函数。
+  - emplace成员会使用这些参数在容器管理的内存空间中直接构造元素。
+  - 传递给emplace函数的参数必须与元素类型的构造函数相匹配。
+
+#### 访问元素
+
+- 包含array在内的每个顺序容器都有一个front成员函数，而除了forward_list之外的所有顺序容器都有一个back成员函数。这两个操作分别返回首元素和尾元素的引用。
+
+- 获取容器c中首元素和尾元素的例子
+
+  ```c++
+  if(!c.empty()){ //在解引用一个迭代器或调用front或back前要检查是否有元素
+      // va1 和 va2 是c中第一个元素值的拷贝
+      auto va1 = *c.begin();
+      auto va2 = c.front();
+      // va3 和 va4 是c中最后一个元素值的拷贝
+      auto last = c.end();
+      auto va3 = *(--last); // 不能递减forward_list迭代器
+      auto va4 = c.back();  // forward_list不支持
+  }
+  ```
+
+- at和下标只适用于string、vector、deque和array
+
+  ```c++
+  c.at[n]; //返回下标为n的元素的引用，n是一个无符号数，下标越界，则抛出out_of_range异常
+  c[n];    //返回下标为n的元素的引用，n是一个无符号数，若n>c.size()，则函数未定义
+  ```
+
+- 访问成员函数返回的都是引用，若容器不是const的，则返回值是普通引用，可以用来修改元素值。
+
+#### 删除元素
+
+- 删除操作
+  - forward_list 有特殊版本的erase
+  - forward_list 不支持pop_back；vector和string不支持pop_front。
+  - c.pop_back(); 删除c中尾元素。若c为空，则函数行为未定义。返回void。 
+  - c.pop_front(); 删除c中首元素。若c为空，则函数行为未定义。返回void。 
+  - c.erase(p); 删除跌打器p所指的元素，返回一个指向被删除元素之后的迭代器，若p指向为元素，则返回尾后跌打器。若p是尾后迭代器，则函数行为未定义。
+  - c.erase(b, e); 删除迭代器b和e所指定范围内的元素。返回一个指向最后一个被删除元素之后元素的迭代器，若e本身是尾后迭代器，则函数函数也返回尾后迭代器。
+  - c.clear(); 删除c中的所有元素，返回void。
+
+#### 特殊的forward_list
+
+- 因为forward_list 是单向链表，每个节点除了保存数据外只保存了指向其后继的指针。当我门要在把对象插入到某个元素前时，我们需要知道该元素前驱的链接，这显然是不可能的。综上所述，在forward_list中插入或删除是通过改变给定元素之后的元素来完成的。于是就有了：
+
+  - insert_after
+  - emplace_after
+  - erase_after
+  - before_begin：返回指向链表首元素之前不存在的元素的迭代器。此迭代器不能解引用。
+
+- 练习：查找并删除forward_list<int>中的奇数元素。
+
+  ```c++
+  #include <iostream>
+  #include <forward_list>
+  using namespace std;
+  int main(){
+  	forward_list<int> fl = {1,2,3,4,7,4,5,5,6,7,8,9};
+      cout << "befor delete: "<< endl;
+      for (auto f:fl) {
+          cout << f << " ";
+      }
+      cout << endl;
+      auto prev = fl.before_begin();
+      auto curr = fl.begin();
+      while (curr != fl.end()) {
+          if ((*curr % 2) == 1) {
+              curr = fl.erase_after(prev);
+          }else{
+              prev = curr++;
+          }
+      }
+      cout << "after delete:" << endl;
+      for (auto ff:fl) {
+          cout << ff << " ";
+      }
+      cout << endl;
+      
+      return 0;
+  }
+  /*
+  	输出结果：
+  	befor delete: 
+  	1 2 3 4 7 4 5 5 6 7 8 9 
+  	after delete:
+  	2 4 4 6 8 
+  */
+  ```
+
+#### 改变容器大小
+
+- 除了array，其他容器可以用resize来增大或缩小容器。
+- 如果resize缩小容器，则指向被删除元素的迭代器、引用和指针都会失效。
+- 对vector、string或deque进行resize可能导致迭代器、指针和引用失效。

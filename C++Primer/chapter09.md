@@ -232,3 +232,92 @@
 - 除了array，其他容器可以用resize来增大或缩小容器。
 - 如果resize缩小容器，则指向被删除元素的迭代器、引用和指针都会失效。
 - 对vector、string或deque进行resize可能导致迭代器、指针和引用失效。
+
+###vector对象是如何增长的
+
+- 当不得不获取新的内存空间时，vector和string的实现通常会分配比新的空间需求更大的内存空间。容器预留这些空间作为备用，可以保存更多的新元素。
+- 这样就不需要每次添加新元素都重新分配容器内存空间了。
+- 容器大小管理操作
+  - c.shrink_to_fit(); 只适用于vector、string和deque。请求将capacity减少为与size相同大小。也就是将多余的内存空间退还，但是调用该函数只是一个请求，标准库不保证退还内存。
+  - c.capacity(); 只适用于vector和string 不重新分配内存的话，c可以保存多少元素
+  - c.reserve(n); 分配至少能容纳n个元素的内存空间。
+
+### 额外的string操作
+
+- 当从一个const char* 创建string 数组时，指针指向的数组必须以空字符结尾，拷贝操作遇到空字符时停止。
+- s.substr(pos, n); 返回一个string，包含s中从pos开始的n个字符的拷贝。pos的默认值为0。n的默认值为s.size()-pos，即拷贝从pos开始的所有字符。
+
+#### 改变string的其他方法
+
+- append：在string末尾进行插入的一种简写形式。
+
+  ```c++
+  string s("C++ Primer"), s2 = s;
+  s.insert(s.size(), " 4th Ed.");
+  s2.append(" 4th Ed."); //这里s2的值与s等价
+  ```
+
+- replace：是调用erase和insert的一种简写形式。
+
+  ```c++
+  // 接上文
+  s.erase(11, 3);   //这时 s=="C++ Primer Ed."
+  s.insert(11, "5th"); // 这时 s=="C++ Primer 5th Ed."
+  s2.replace(11, 3, "5th"); //s2==s， 这里的参数3是指从11开始删除3个字符 
+  ```
+
+#### string搜索
+
+- string搜索函数返回string::size_type值，该类型是一个unsigned类型。如果搜索失败，则返回string::npos的static成员。
+- 标准库将npos定义为一个 const string::size_type类型，并初始化为值-1。因为npos你一个unsigned类型，这就意味值npos等于任何string最大的可能大小。
+- 搜索是大小写敏感的。
+- 
+
+#### compare函数
+
+#### 数值转换
+
+- to_string(i); 将整数i转换为字符表示形式
+- 将字符串s转换为数值：
+  - stoi
+  - stol
+  - stoul
+  - stoll
+  - stoull
+  - stof
+  - stod
+  - stold
+
+
+
+### 容器适配器
+
+- 除了顺序容器外，标准库还定义了三个顺序容器适配器：
+  - stack：定义在stack头文件中
+  - queue
+  - priority_queue：和queue都定义在queue头文件中。
+- 适配器是标准库中的一个通用概念。
+- 容器、迭代器和函数都有适配器。
+
+#### 定义一个适配器
+
+- 每个适配器都定义两个构造函数：默认构造函数创建一个空对象，另一个构造函数接受一个容器的构造函数拷贝该容器来初始化适配器。
+- 可以在创建一个适配器时将一个命名的顺序容器作为第二个类型参数，来重载默认容器类型。
+- 适配器不能构造在array之上，因为所有适配器都要求容器具有添加和删除元素的能力。
+- 也不能用forward_list来构造适配器，因为所有适配器都要求容器具有添加、删除以及访问尾元素的能力。
+- stack可以使用array和forward_list之外的任何容器类型来构造。
+- queue适配器可以构造在list和deque之上，但不能基于vector构造。
+- priority_queuek可以基于vector或deque，但不能基于list
+
+#### 栈适配器
+
+- 栈默认基于deque实现，也可以基于list或vector实现
+
+  ```c++
+  stack<string, vectot<string>> str_stk; // 在vector上实现的空栈
+  ```
+
+#### 队列适配器
+
+- queue默认基于deque实现
+- priority_queue默认基于vector实现

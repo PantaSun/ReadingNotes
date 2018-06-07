@@ -225,6 +225,84 @@
 
   
 
+ #### weak_ptr
+
+- 是一种不控制所指向对象生存期的智能指针，它指向由一个shared_ptr管理的对象。
+  - weak_ptr<T>  w ; 空weak_ptr可以指向类型为T的对象
+  - weak_ptr<T>  w(sp); 与shared_ptr sp指向相同对象的weak_ptr，T必须能转换为sp指向的类型。
+  - w = p; p可以是一个shared_ptr或weak_ptr。赋值后w与p共享对象。
+  - w.reset(); 将w置为空
+  - w.use_count(); 与w共享对象的shared_ptr的数量。
+  - w.expired(); 若use_count()为0，返回true，否则返回false
+  - w.lock();如果expired为true，返回一个空shared_ptr；否则返回一个指向w的对象的shared_ptr。 
+- weak_ptr绑定到一个shared_ptr不会改变shared_ptr的引用计数，所以当最后一个指向对象的shared_ptr被销毁，对象就会被释放，即使有weak_ptr指向对象。
+- 由于对象可能不存在，所以不能直接使用weak_ptr访问对象，而必须调用lock：此函数检查weak_ptr指向的对象是否存在，如果存在就返回一个指向共享对象的shared_ptr；不存在的话就返回一个空shared_ptr。
+
+###动态数组
+
+#### new和数组
+
+- 用new分配一个对象数组，需要在类型名之后跟一对方括号，在其中指明要分配的对象的数目。
+
+  ```c++
+  int *pia = new int[get_size()]; // get_size()返回要分配int的个数，这里用整数也可以的
+  ```
+
+- 分配一个数组会得到一个元素类型的指针：当有那个new T[]分配一个数组时，并未得到一个数组类型的对象，而是得到一个数组元素类型的指针。
+
+- 因为分配的内存不是一个数组类型，因此不能对动态数组调用begin和end。也不能使用范围for循环。
+
+##### 动态分配一个空数组是合法的
+
+- 虽然不能创建一个大小为0的静态数组对象，但当n等于0时，调用new[n]是合法的：
+
+  ```c++
+  char arr[0];  //错误：不能定义长度为0的数组
+  char *p = new char[0]; // 合法：但p不能被解引用
+  ```
+
+- new返回一个合法的非空指针。
+
+##### 释放动态数组
+
+- 为了释放动态数组，可以使用delete，并在指针前加上一个空方括号[]：`delete []p;`
+- 数组中元素按逆序销毁。
+- 当释放一个指向数组的指针时，空方括号是必需的。
+
+##### 智能指针和动态数组
+
+- 标准库提供了可以管理new分配的数组的unique_ptr版本。
+
+  ```c++
+  unique_ptr<int[]> up(new int[10]);
+  up.release();//自动调用delete[]销毁其指针
+  ```
+
+- 当一个unique_ptr指向一个数组时，可以使用下标运算符来访问数组中的元素。
+
+- 指向数组的unique_ptr不支持成员访问运算符。
+
+#### allocator类
+
+- 定义在memory中，帮助我们将内存分配和对象构造分离开来。
+
+- 它分配的内粗是原始的、未构造的。可以按需在此内存中构造对象。
+
+- construct成员函数接受一个指针和零个或多个额外参数，在给定的位置构造一个元素。
+
+  ```c++
+  allocator<string> alloc; //可以分配string的allocator对象
+  auto const p = alloc.allocate(n); //分配n个未初始化的string
+  auto q = p; // q指向最后构造的元素之后的位置
+  alloc.construct(q++); //*q为空字符串
+  alloc.construct(q++, 10, 'c'); // *q为cccccccccc
+  alloc.construct(q++, "hi"); //*q为hi
+  ```
+
+- 还未构造对象的情况下使用原始内存是错误的。
+
+- 只能对真正构造了的元素进行destroy操作：`a.destroy(p);`表示对p指向的对象执行析构函数，这里p为*T类型的指针。
+
 
 
 

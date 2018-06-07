@@ -131,5 +131,101 @@
 - 避免空悬指针是的方法：在指针即将离开其作用域之前释放掉它所关联的内存。
 - 如果需要保留指针，可以在delete之后将nullptr赋予指针，这样就清楚地指出指针不指向任何对象。
 
+#### shared_ptr和new结合使用
+
+- 不能将一个内置指针隐式转换为一个智能指针，必须使用直接初始化形式来初始化一个智能指针：
+
+  ```c++
+  shared_ptr<int> p1 = new int(42); //错误：必须使用直接初始化
+  shared_ptr<int> p2(new int(42)); //正确：使用了直接初始化
+  ```
+
+- 同理，一个返回shared_ptr的函数不能在其返回语句中隐式转换一个普通指针：
+
+  ```c++
+  shared_ptr<int> clone(int p){
+      return new int(p); //错误：隐式转换为shared_ptr<int>
+  }
+  shared_ptr<int> clone1(int p){
+      return shared_ptr<int>(new int(p)); //正确：显式的用int*创建shared_ptr<int>
+  }
+  ```
+
+#### 智能指针和异常
+
+- 当函数因为发生异常未被捕获而退出时，由一个shared_ptr唯一指针指向的内存会被释放掉；而直接管理内存不会被释放，即便函数末尾有delete语句：
+
+  ```c++
+  void f(){
+      int *ip = new int(42);
+      //发生异常未被捕获
+      delete ip; 
+  }
+  ```
+
+  如上述代码所示，假设在new和delete之间发生异常，且异常未在f中被捕获，则内存永远不会释放；而智能指针会通过检查引用计数，当引用计数为0时就会自动释放内存。
+
+##### 智能指针陷阱
+
+- 不使用相同的内置指针初始化或reset多个智能指针
+- 不delete get()返回的指针。
+- 不使用get()初始化或reset另一个智能指针。
+- 如果你使用get()返回的指针，记住最后一个对应的智能指针销毁后，你的指针就变为无效了。
+- 如果你使用智能指针管理的资源不是new分配的内存，记住传递给它一个删除器。
+
+
+
+#### unique_ptr
+
+- 与shared_ptr不同的是，某个时刻只能有一个unique_ptr指向一个指定对象。
+
+- 当unique_ptr被销毁时，它所指向的对象也被销毁。
+
+- 初始化unique_ptr必须采用直接初始化形式。
+
+- unique_ptr不支持拷贝，也不支持赋值。
+
+- 虽然不能拷贝和赋值，unique_ptr可以通过调用release或reset将指针的所有权从一个非const的unique_ptr转移给另一个unique_ptr：
+
+  ```c++
+  unique_ptr<string> p1(new string("hello world!")); //直接初始化
+  unique_ptr<string> p2(p1.release()); //将所有权从p1（指向string hello world！）转移给p2
+  unique_ptr<string> p3(new string("nihao!")); //直接初始化
+  p2.reset(p3.release()); // reset释放了p2原来指向的内存，
+  						// 将指向string nihao！的所有权从p3转移给p2
+  ```
+
+- unique_ptr的一些操作
+
+  - unique_ptr<T> u1; 空unique_ptr，可以指向类型为T的对象。u1会使用delete来释放它的指针；
+  - unique_ptr<T, D> u2; 同上空unique_ptr，u2会使用一个类型为D的可调用对象来释放它的指针。
+  - unique_ptr<T, D> u(d); 空unique_ptr，指向类型为T的对象，用类型为D的对象d来代替delete。
+  - u = nullptr; 释放u指向的对象，将u置为空。
+  - u.release(); u放弃对指针的控制权，返回指针，并将u置空。即，返回unique_ptr当前保存的指针并将其置空。
+  - u.reset(); 释放u指向的对象，并将u置空。
+  - u.reset(q); 释放u指向的对象，然后令u指向q这个内置指针对象。
+  - u.reset(nullptr);释放u指向的对象，并将u置空。
+
+- 若用一个内置指针来保存release返回的指针，则需要手动释放内存，即delete。
+
+##### 传递unique_ptr参数和返回unique_ptr
+
+- 不能拷贝unique_ptr的规则有一个例外：可以拷贝或赋值一个将要被销毁的unique_ptr：
+
+  ```c++
+  unique_ptr<int> clone(int p){
+      return unique_ptr<int>(new int(p)); //从int*创建一个unique_ptr<int>
+  }
+  // 还可以返回一个局部对象的拷贝
+  unique_ptr<int> clone1(int p){
+      unique_ptr<int> ret(new int(p));
+      return ret;
+  }
+  ```
+
+  
+
+
+
 
 

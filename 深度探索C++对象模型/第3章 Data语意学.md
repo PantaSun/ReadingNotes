@@ -282,8 +282,11 @@ Concrete1 *pc1_2 = &c2;		 	 // 3
 ```
 
 - 第0行创建一个Concrete2对象c2
+
 - 第1行创建一个Concrete1对象c1
+
 - 第2行创建一个指向Concrete1对象的指针并指向c1
+
 - 第3行再创建一个指向Concrete1的指针并指向一个Concrete2对象，即指向c2.
 
 - 第4行执行一个默认的“memberwise”复制操作（复制一个个的 members）。pc1_2指向一个 class Concrete2 object，该复制语句会将 pc1_1所指的内容中 class Concrete1 object的那部分复制给 pc1_2！如果将三个类的成员捆绑到一起，去填补空间，上述那些语意就没办法保留了！由于捆绑而导致的内存复制出现错误，请看下图，会更容易理解：
@@ -291,5 +294,206 @@ Concrete1 *pc1_2 = &c2;		 	 // 3
   ![](E:\ReadingNotes\深度探索C++对象模型\3.4.2.png)
 
 - 也就是说如果是“捆绑设计”，那么第4行代码执行后就会改变c2中的bit2的值，但这不是我们想要的，我们只是想改变c2中Concrete1那部分内容。
+
 - 这里的pc1_1和pc1_2是可以指向三种类型（上述代码中个的三种）的对象的。因此当一个指向后代类对象的指针被一个指向祖先类对象的指针使用上述第3行代码这样用等号复制时都会在“捆绑设计”下发生这种错误。（这里借助了树中的祖先和后代的概念，祖先指的是继承链中靠前的类，后代是指继承链中靠后的类，基类（前）=》派生类（后））
+
 - 而在前述的C++的实际设计中，子对象有子对象的空间，就不会发生这种问题！
+
+
+
+## 单一继承并含有virtual function（加上多态）
+
+```c++
+class Point2d
+{
+ public:
+    Point2d(float x=0.0, float y=0.0): _x(x), _y(y){};
+    float x(){ return _x;}
+	void x(float newx){_x = newx;}
+    float y(){ return _y;}
+    void y()(float newy){_y = newy;}
+    virtual float z(){return 0.0;}
+    virtual void z(float){}
+    virtual operator+=(const Point2d & rhs)
+    {
+        _x += rhs.x();
+        _y += rhs.y();
+    }
+ protected:
+    float _x, _y;
+};
+```
+
+当在类中加入了virtual functions时，势必会对类来带空间和存取时间上的额外负担，就拿上述Point2d来说：
+
+- 会导入一个与Point2d有关的vtbl（virtual table），这个table用来存放类中声明的所有virtual functions的地址，table 中元素的个数是声明的virtual functions个数加上一个或两个slots（用以支持runtime type identification）
+- 在每一个类对象中导入一个vptr（虚指针），这个虚指针提供执行期的链接，使每一个object能够找到相应的vtbl
+- 加强构造函数，使其能为vptr设定初值，让vptr指向类所对应的vtbl
+- 加强析构函数，使其能够释放指向“与类相关的vtbl”的vptr
+
+
+
+**但是vptr放置在class object的哪里最好？**
+
+像cfront等编译器把vptr放在class object的尾端，可以保留base class C struct的对象布局，因而允许在C程序代码中使用。
+
+到了C++2.0后某些编译器将vptr放置class obbject的头部：这样做的话，“在多重继承下，通过class members的指针调用virtual function”，会有一些帮助。当然这样也就丧失了对C语言的兼容性。
+
+不管放在基类的首段还是尾端，派生类继承后也会保持vptr与基类成员之间的顺序，比如基类中是将vptr放在尾端，那么在派生类是放在派生类中基类部分的尾端而不是整个派生类对象尾端。无论继承多少次 vptr 在所有的 base class 对象或者 derived class 对象中都只有一份！并且位置都相同，但是它们（vptr）指向的 virtual table 不相同！都指向内存中各自的 virual table， 调用时分别从各自的 virtual table 中找 virtual functions 的地址进行调用，即实现了多态的机制。
+
+### 多重继承
+
+单一继承提供了一种“自然多态”形式，是关于classes体系中的base type和derived type之间的转换。base class 和derived class的object都是从相同的地址开始的，其间差异只在于derived object比较大。
+
+多重继承的问题主要发生于derived class object和其第二或后继base class objects之间的转换：
+
+对一个多重派生对象，将其地址指定给“最左端（也就是第一个）base class的指针”，情况将和单一继承时相同，因为二者都指向相同的起始地址，至于第二个或后继base class的地址操作，则需要将地址修改过：
+
+//Point3d继承Point2d，Vertex3d多重继承Point3d和Vertex
+
+Vertex3d v3d;
+
+Vertex *pv;
+
+Point2d *p2d;
+
+Point3d *p3d;
+
+那么 pv = &v3d;需要如下的内部转换：
+
+pv = (Vertex * )( ( (char * )&v3d ) + sizeof(Point3d) );
+
+而：
+
+p2d = &v3d;
+
+p3d = &v3d;
+
+都只需要简单的地址拷贝就行了。如果有两个指针如下：
+
+Vertex3d *pv3d;
+
+Vertex *pv;
+
+那么 pv = pv3d;
+
+不能只是简单的地址转换，因为如果pv3d为0，pv将获得sizeof(Point3d)的值，这是错误的，因为，内部需要一个条件测试：
+
+pv = pv3d ? (Vertex * )((char * )pv3d) + sizeof(Point3d) : 0;
+
+C++Standar 并未要求Vertexd中base class Point3d和Vertex有特定的排列次序。
+
+### 虚拟继承
+
+![](E:\ReadingNotes\深度探索C++对象模型\3.4.3.png)
+
+
+要在编译器中支持虚拟继承，难度在于，要找到一个足够有效的方法，将上图中istream和ostream各自维护的一个ios subobject，折叠成为一个由iostream维护的单一ios subobject，并且还可以保存base class和derived class的指针之间的多态指定操作。
+
+一般的实现方法如下所述。class如果内含一个或多个virtual base class subobject，像istream那样，将被分割成两部分：一个不变区域和一个共享区域。不变区域中的数据，不管后继如何衍化，总是拥有固定的offset（从obbject的开头算起），所以这一部分数据可以被直接存取。至于共享区域，所表现的就是virtual base class subobject。这一步部分的数据，其位置会因每次的派生操作而有变化，所以它们只能是间接存取。
+
+下图表现Point2d、Point3d、Vertex、Vertex3d的继承体系
+
+![](E:\ReadingNotes\深度探索C++对象模型\3.4.4.png)
+
+其代码如下：
+
+ ```c++
+class Point2d {
+protected:
+	float _x, _y;
+};
+
+class  Point3d :public virtual Point2d {
+protected:
+	float _z;
+};
+
+class Vertex :public virtual Point2d{
+protected:
+	Vertex *next;
+};
+
+class Vertex3d :public Point3d, public Vertex {
+protected:
+	float mumble;
+};
+ ```
+
+
+一般的布局策略是先安排好derived class的不变部分，然后再建立其共享部分。
+
+**如何能够存取class的共享部分呢？下面介绍三种主流策略**：
+
+1. cfront编译器会在每一个derived class object中安插一些指针，每个指针指向一个virtual base class。要存取继承得来的virtual base class members，可以通过相关指针间接完成。比如有以下的Point3d运算符：
+
+```c++
+void Point3d::operator+=(const Point3d &rhs) {
+	x += rhs.x;
+	y += rhs.y;
+	z += rhs.z;
+}
+//在cfont策略之下，这个运算符在内部会被转换为：
+//vbc是virtual base class，其实也就是说vbcPoint2d是
+//派生类内部的一个指针，专门用来指向Point2d
+
+vbcPoint2d->x += rhs.__vbcPoint2d->x;
+vbcPoint2d->_y += rhs.vbcPoint2d->y;
+_z += rhs.z;
+
+```
+
+
+​	而一个derived class和一个base class的实例之间的转换`Point2d *p2d=pv3d;`在cfont策略之下，在内部会被转换为：`Point2d *p2d=pv3d?pv3d->__vbcPoint2d:0;`
+
+上述的实现模型主要有两个缺点：（一个是从宽度方面、一个深度方面）
+
+- 每一个对象必须为其每一个virtual base class背负一个额外的指针。然而理想上我们却希望class object有固定的负担，但这里如果virtual base classes的个数增加，则也需要添加响应的指针。
+
+- 由于虚拟继承链的加长，导致了间接存取层次的增加。这就是说，如果是一个三层继承，就需要三次间接存取才能联系到第一层的virtual base class，然而理想上希望有固定的存取时间，不因为虚拟派生的深度而改变。
+
+解决第二个问题的方法是：经由拷贝取得所有的nested virtual base class指针，放到derived class object之中。这就解决了“固定存取时间”的问题，这时，找哪一个virtual base class都可以通过derived中响应的指针一步到位。当然，这付出了空间上的代价。
+
+![](E:\ReadingNotes\深度探索C++对象模型\3.4.5.png)
+
+
+注意：
+
+- 浅红色部分代表的是Point2d subobject
+
+- 在class Point3d中，那个箭头的起始处代表的是虚拟继承中的指针，指向的是virtual base class。class Vertex同理。
+
+- 尽管在Point3d和Vertex中都内含一个Point2d subobject。然而在Vertex3d的对象布局中，只需单一一份个Point2d subobject就好。
+
+2. 解决第一个问题的一种方法是引入所谓的virtual base class table。每个class object如果有一个或多个virtual base class 就会由编译器安插一个指针，指向virtual base class table。至于真正的virtual base class的指针就放在表格中。
+3. 第二种解决方法是在virtual function table中放置virtual base class的offset(不是地址)。因为以前以前学到的只是是在virtual function table中存放的是virtual function entries，但现在就是将virtual base class offset和virtual function entries混杂在一起了。那么怎么区分呢，如下图所示，virtual function table可经由正值或者负值来索引。如果是正值，索引到的就是virtual functions；如果是负值，则是索引到virtual base class offsets。在这样策略下，Point3d的operator+=运算符进行了下述转换：
+
+```c++
+void Point3d::operator+=(const Point3d &rhs)
+{
+	x += rhs.x;
+	y += rhs.y;
+	z += rhs.z;
+}
+//rhs.vptrPoint3d[-1]中保存的是偏移地址,所以需要+this和+&rhs
+(this + vptrPoint3d[-1])->x += (&rhs + rhs.vptrPoint3d[-1])->x;
+(this + vptrPoint3d[-1])->y += (&rhs + rhs.vptrPoint3d[-1])->y;
+z += rhs.z;
+```
+
+
+再比如：
+
+`Point2d *p2d=pv3d;`在上述实现模型下将变成：`Point2d *p2d=pv3d?pv3d+pv3d->__vptr__Point3d[-1]:0;`
+
+![](E:\ReadingNotes\深度探索C++对象模型\3.4.6.png)
+
+经由一个非多态的class object来存取一个继承而来的virtual base class的member，比如：
+
+`Point3d origin; origin._x;`
+
+上述操作可直接存取，和经由对象调用的virtual function调用操作一样，可以在编译期间就决议完成。在这次存取以及下次一存取之间，对象的类型不可以改变，所以“virtual base class subobject的位置会变化”的问题在此情况下就不再存在了。
+
+上面的各种方法都是一种实现模型，而不是一种标准。所以它们都是用来解决在虚拟继承中存取shared subobject内的数据的一种实现方式，各有优缺点。
+
+一般而言，virtual base class最有效的一种运用形式就是：一个抽象的virtual base class，没有任何data members。 

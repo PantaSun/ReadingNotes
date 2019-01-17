@@ -201,4 +201,95 @@ Point3d::chunkSize = 250
 要对一个Nonstatic data member进行存取操作，编译器需要把class object的地址加上data member 的偏移位置（offset），例如`&origin.y`相当于`&origin + (&Point3d::y - 1)`，这里的“-1”是为了区别**“一个指向data member的指针，用以指向class的第一个member”和“一个指向data member的指针，没有指向class的第一个member”**，具体后面会说，**目前我是没看懂这句话**。
 
 - 通过对象、引用或指针存取一个nonstatic data member的成本，其效率和存取一个C struct member或一个nonderived class的member（单一继承或多重继承）是一样的（多重继承的时候，members的位置在编译时就固定了，存取members只是一个简单的offset运算）。
-- 通过引用或指针比通过对象存取一个virtual base class的member的速度会稍慢一点（我们不知道这个引用或指针指向哪一种class type，也就不知道编译期这个member真正的offset的位置，所以这个存取操作必须延迟至执行期，经由一个额外的间接导引，才能够解决）。但是如果不使用指针而直接使用对象就不会有这些问题，因为该对象类型肯定是派生类类型的。而该派生类继承自基类的data member的在派生类内的偏移量在编译时期已经确定了。
+- 通过引用或指针比通过对象存取一个virtual base class的member的速度会稍慢一点（我们不知道这个引用或指针指向哪一种class type，也就不知道编译期这个member真正的offset的位置，所以这个存取操作必须延迟至执行期，经由一个额外的间接导引，才能够解决）。但是如果不使用指针而直接使用对象就不会有这些问题，因为该对象类型肯定是派生类类型的。而该派生类继承自基类的data member在派生类内的偏移量在编译时期已经确定了。
+
+## “继承”与Data Member
+
+在C++继承中，一个派生类对象所表现出的东西是其自己的成员加上其基类的成员的总和。
+
+C++ Standard 并未强制规定派生类中继承于基类的成员与派生类自己的成员之间的排列顺序。
+
+大部分编译器中，基类成员总是先出现，但是属于虚基类的除外（一般的规定一遇到virtual base class就失效了，即需要特殊处理，这里也不例外）。
+
+### 只要继承没有多态
+
+在具体继承（concrete inheritance，相对于虚拟继承virtual inheritance而言的）中，派生类可以共享基类的“数据本身”以及“数据的处理方法”，并将之局部化，而且不会增加额外的空间或存取时间（额外是指基类声明的加上派生类自己声明的成员及方法以外）。
+
+**base class subobject（基类子对象）**：在派生类对象内部，一定有一份基类对象存在。派生类对象内部的这份基类对象，本质上是派生类的一个成员，称之为基类子对象。
+
+把一个类分解成两层或更多层继承可能会造成所需空间的膨胀。因为C++语言保证“出现在derived class中的base class subobject有其完整原样性”，例如：
+
+```c++
+class Concrete
+{
+ public:
+    ... // 一些函数，没有数据成员
+ private:
+    int val;
+    char c1;
+    char c2;
+    char c3;
+}；
+```
+
+在32机器中，这个类的对象的大小是8bytes，即val占4bytes，c1、c2、和c3各占1byte，这就是7bytes了，还有1byte用来alignment，所以一共是8bytes。
+
+当将这个类分为三层（继承）时，有如下代码：
+
+```C++
+class Concrete1
+{
+ public:
+    ...
+ private:
+    int val;
+    char bit1;
+};
+
+class Concrete2: public Concrete1
+{
+ public:
+    ...
+ private:
+    char bit2;
+};
+
+class Concrete3: public Concrete2
+{
+ public:
+    ...
+ private:
+    char bit3;
+};
+```
+
+这时Concrete3的一个对象的大小为16bytes而不是8bytes，虽然Concrete3从成员数量和种类来说和之前的Concrete没有区别。
+
+首先对于Concrete1来说，val占4bytes，bit1占1byte，还有3bytes用于对齐，即一共8bytes。而Concrete2继承自Concrete1，又因为会保证其base class subobject完整性所以，Concrete2中的bit2不会和Concrete1捆绑在一起，即不会占用Concrete1中原来用于填补的1byte，而是放在Concrete1的8bytes之后的1byte，这就是9bytes，在根据对齐原则，一共12bytes，同理Concrete3占16bytes。具体布局可以见下图1
+
+![图1](E:\ReadingNotes\深度探索C++对象模型\3.4.1.jpg)
+
+**为什么C++要保证“base class subobject完整性”？**
+
+假设有如下代码：
+
+```c++
+Concrete2 c2;					// 0
+Concrete1 c1;					// 1 
+Concrete1 *pc1_1 = &c1;			 // 2
+Concrete1 *pc1_2 = &c2;		 	 // 3
+*pc1_2 = *pc1_1;				// 4
+```
+
+- 第0行创建一个Concrete2对象c2
+- 第1行创建一个Concrete1对象c1
+- 第2行创建一个指向Concrete1对象的指针并指向c1
+- 第3行再创建一个指向Concrete1的指针并指向一个Concrete2对象，即指向c2.
+
+- 第4行执行一个默认的“memberwise”复制操作（复制一个个的 members）。pc1_2指向一个 class Concrete2 object，该复制语句会将 pc1_1所指的内容中 class Concrete1 object的那部分复制给 pc1_2！如果将三个类的成员捆绑到一起，去填补空间，上述那些语意就没办法保留了！由于捆绑而导致的内存复制出现错误，请看下图，会更容易理解：
+
+  ![](E:\ReadingNotes\深度探索C++对象模型\3.4.2.png)
+
+- 也就是说如果是“捆绑设计”，那么第4行代码执行后就会改变c2中的bit2的值，但这不是我们想要的，我们只是想改变c2中Concrete1那部分内容。
+- 这里的pc1_1和pc1_2是可以指向三种类型（上述代码中个的三种）的对象的。因此当一个指向后代类对象的指针被一个指向祖先类对象的指针使用上述第3行代码这样用等号复制时都会在“捆绑设计”下发生这种错误。（这里借助了树中的祖先和后代的概念，祖先指的是继承链中靠前的类，后代是指继承链中靠后的类，基类（前）=》派生类（后））
+- 而在前述的C++的实际设计中，子对象有子对象的空间，就不会发生这种问题！

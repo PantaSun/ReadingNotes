@@ -267,7 +267,7 @@ class Concrete3: public Concrete2
 
 首先对于Concrete1来说，val占4bytes，bit1占1byte，还有3bytes用于对齐，即一共8bytes。而Concrete2继承自Concrete1，又因为会保证其base class subobject完整性所以，Concrete2中的bit2不会和Concrete1捆绑在一起，即不会占用Concrete1中原来用于填补的1byte，而是放在Concrete1的8bytes之后的1byte，这就是9bytes，在根据对齐原则，一共12bytes，同理Concrete3占16bytes。具体布局可以见下图1
 
-![图1](E:\ReadingNotes\深度探索C++对象模型\3.4.1.jpg)
+![图1](https://github.com/PantaSun/ReadingNotes/blob/master/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C++%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/3.4.1.jpg?raw=true)
 
 **为什么C++要保证“base class subobject完整性”？**
 
@@ -291,7 +291,7 @@ Concrete1 *pc1_2 = &c2;		 	 // 3
 
 - 第4行执行一个默认的“memberwise”复制操作（复制一个个的 members）。pc1_2指向一个 class Concrete2 object，该复制语句会将 pc1_1所指的内容中 class Concrete1 object的那部分复制给 pc1_2！如果将三个类的成员捆绑到一起，去填补空间，上述那些语意就没办法保留了！由于捆绑而导致的内存复制出现错误，请看下图，会更容易理解：
 
-  ![](E:\ReadingNotes\深度探索C++对象模型\3.4.2.png)
+  ![](https://github.com/PantaSun/ReadingNotes/blob/master/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C++%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/3.4.2.png?raw=true)
 
 - 也就是说如果是“捆绑设计”，那么第4行代码执行后就会改变c2中的bit2的值，但这不是我们想要的，我们只是想改变c2中Concrete1那部分内容。
 
@@ -385,7 +385,7 @@ C++Standar 并未要求Vertexd中base class Point3d和Vertex有特定的排列�
 
 ### 虚拟继承
 
-![](E:\ReadingNotes\深度探索C++对象模型\3.4.3.png)
+![](https://github.com/PantaSun/ReadingNotes/blob/master/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C++%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/3.4.3.png?raw=true)
 
 
 要在编译器中支持虚拟继承，难度在于，要找到一个足够有效的方法，将上图中istream和ostream各自维护的一个ios subobject，折叠成为一个由iostream维护的单一ios subobject，并且还可以保存base class和derived class的指针之间的多态指定操作。
@@ -394,7 +394,7 @@ C++Standar 并未要求Vertexd中base class Point3d和Vertex有特定的排列�
 
 下图表现Point2d、Point3d、Vertex、Vertex3d的继承体系
 
-![](E:\ReadingNotes\深度探索C++对象模型\3.4.4.png)
+![](https://github.com/PantaSun/ReadingNotes/blob/master/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C++%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/3.4.4.png?raw=true)
 
 其代码如下：
 
@@ -454,7 +454,7 @@ _z += rhs.z;
 
 解决第二个问题的方法是：经由拷贝取得所有的nested virtual base class指针，放到derived class object之中。这就解决了“固定存取时间”的问题，这时，找哪一个virtual base class都可以通过derived中响应的指针一步到位。当然，这付出了空间上的代价。
 
-![](E:\ReadingNotes\深度探索C++对象模型\3.4.5.png)
+![](https://github.com/PantaSun/ReadingNotes/blob/master/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C++%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/3.4.5.png?raw=true)
 
 
 注意：
@@ -486,7 +486,7 @@ z += rhs.z;
 
 `Point2d *p2d=pv3d;`在上述实现模型下将变成：`Point2d *p2d=pv3d?pv3d+pv3d->__vptr__Point3d[-1]:0;`
 
-![](E:\ReadingNotes\深度探索C++对象模型\3.4.6.png)
+![](https://github.com/PantaSun/ReadingNotes/blob/master/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C++%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/3.4.6.png?raw=true)
 
 经由一个非多态的class object来存取一个继承而来的virtual base class的member，比如：
 
@@ -497,3 +497,91 @@ z += rhs.z;
 上面的各种方法都是一种实现模型，而不是一种标准。所以它们都是用来解决在虚拟继承中存取shared subobject内的数据的一种实现方式，各有优缺点。
 
 一般而言，virtual base class最有效的一种运用形式就是：一个抽象的virtual base class，没有任何data members。 
+
+
+
+## 指向Data Members的指针
+
+
+
+先看一段代码：
+
+```c++
+#include <iostream>
+#include <stdio.h>
+
+using namespace std;
+
+class Point3d {
+public:
+    virtual ~Point3d() {}
+    void printWithCout() {
+        cout << "&Point3d::_x = " << &Point3d::_x << endl;
+        cout << "&Point3d::_y = " << &Point3d::_y << endl;
+        cout << "&Point3d::_z = " << &Point3d::_z << endl;
+    }
+    void printWithPf() {
+        printf("&Point3d::_x = %d\n", &Point3d::_x);
+        printf("&Point3d::_y = %d\n", &Point3d::_y);
+        printf("&Point3d::_z = %d\n", &Point3d::_z);
+    }
+    
+private:
+    static Point3d origin;
+    float _x;
+    float _y;
+    float _z;
+};
+
+int main()
+{
+    Point3d p3d;
+    p3d.printWithCout();
+    p3d.printWithPf();
+    system("pause");
+    return 0;
+}
+
+```
+
+上面这段代码，在CLion(g++4.8.1)和VS2017中输出的都是：
+
+```C++
+&Point3d::_x = 1
+&Point3d::_y = 1
+&Point3d::_z = 1
+&Point3d::_x = 4
+&Point3d::_y = 8
+&Point3d::_z = 12
+```
+
+C++允许vptr放在对象的任何位置，但是实际情况大多数不是放在头部，就是放在尾部。 
+取一个坐标成员的地址代表了什么？例如：`&Point3d::_z;`代表了`_z`在class object中的偏移量(offset). 
+上面的输出例子有个疑问： 
+
+1. 为什么使用cout输出的都是1；
+
+除去这个疑问，我们可以得到结论：无论是g++还是MVC++，vptr均在对象的开头。若vptr在对象的尾部，则print输出的都应该是0,4,8。 
+另外，上述输出结果是编译器做了特殊处理，如果不做特殊处理，取data member的地址应该在返回值上加1，即本例的print输出加1，应该是5,9,13，那为什么要加1呢？ 
+
+原因在于分辨一个“没有指向任何data member的指针”和“指向第一个data member的指针”，考虑：
+
+考虑：
+
+```c++
+float Point3d::p1 = 0;
+float Point3d::p2 = &Point3d::_x;
+if(p1 == p2) {  //如何分辨这两个指针
+    //dosomething
+}
+```
+
+为了分辨这两个指针，所以为每一个member offset加1. 
+另外，如何辨别取一个class object身上的data member的地址和上述的区别，即
+
+```c++
+&Point3d::z;    //类型是float Point3d::*
+&origin.z;      //类型是float*
+```
+
+`&origin._z;`取到的是`_z`在内存中的真正地址，若用`origin._z`的地址减去`Point3d::_z`的地址(偏移量)，再加1，最终得到的就是origin的实际地址。理论上是这样，但实际无法这么做，因为两种类型不一样，无法做减法，即使使用转型。

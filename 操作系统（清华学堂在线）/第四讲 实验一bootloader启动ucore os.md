@@ -11,4 +11,11 @@
 ### 从BIOS到Bootloader
 
 - BIOS加载存储设备（比如软盘、硬盘、光盘、USB盘）上的第一个扇区（主引导扇区，Master Boot Record，MBR）的512字节到内存的0x7c00
-- 然后跳转到0x7c00
+- 然后跳转到0x7c00开始执行
+- bootloader做的事情：
+  - 从实模式切换到保护模式，使能保护模式&段机制
+  - 从硬盘上读取kernel in ELF格式的ucore kernel（跟在MBR后面的扇区）并放到内存中固定的位置
+  - 转到ucore OS的入口点执行，这时控制权到了ucore OS
+  - 使能保护模式（protection mode），bootloader/OS要设置CR0的bit 0（PE），段机制在保护模式下是自动使能的
+
+ 

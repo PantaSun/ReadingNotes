@@ -1,6 +1,12 @@
 ## 前言
 
-static member functions不可能做到的两点：
+**C++支持三种类型的成员函数**：
+
+1. 静态成员函数（static member functions）
+2. 非静态成员函数（nonstatic member functions）
+3. 虚函数（virtual functions）
+
+**static member functions不可能做到的两点**：
 
 1. 直接存取nonstatic数据
 2. 被声明为const的
@@ -9,7 +15,7 @@ static member functions不可能做到的两点：
 
 ### 非静态成员函数（nonstatic member functions）
 
-C++的设计准则之一就是：非静态成员函数至少必须和一般的非静态函数有相同的效率。
+C++的设计准则之一就是：非静态成员函数至少必须和一般的（指非成员）非静态函数有相同的效率。
 
 一个非静态成员函数在使用时会被转化为普通的静态函数，其转化步骤如下：
 
@@ -37,9 +43,9 @@ float magnitude_7Point3dFv(Point3d * const this)//注意这里函数名经过man
 
 若原来的非静态成员函数是const的，即`Point3d::magnitude()const{...}`，则转化后的函数的this参数也要变成`const Point3d * const this`。
 
-这时使用`obj.magnitude();`（obj是一个Point3d对象）时，就变成了`magnitude_7Point3dFv(&obj);`\
+这时使用`obj.magnitude();`（obj是一个Point3d对象）时，就变成了`magnitude_7Point3dFv(&obj);`
 
-还有一点要注意，若一个非静态成员函数的返回类型是该类类型，转化时也不要忘记NRV（named returned value）优化。
+还有一点要注意，若一个类的非静态成员函数的返回类型是该类类型，转化时也不要忘记NRV（named returned value）优化。
 
 #### 名称特殊处理方法（name mangling）
 
@@ -59,7 +65,7 @@ class Point
 class Point
 {
  public:
-    void x_5PointFf(float newX);
+    void x_5PointFf(float newX);  // 将类名和参数类型都编码到函数名中了
     float x_5Pointfv();
     ...
 }
@@ -74,3 +80,8 @@ class Point
 - vptr表示由编译器产生的指针，指向virtual table。事实上该指针的名称也会被mangling处理，因为一个复杂的class派生体系中，可能不止一个vptrs。
 - 1是virtual table slot的索引，关联到函数virFun
 - 第二个ptr表示this指针。
+
+显示的调用操作会压制虚拟机制。也就是使用类作用域操作符（class scope operator）显示调用一个虚函数，其resolved（解释）方式会和非静态成员函数一样。例如使用`Point3d::virFun();` ，这样就相当于直接调用一个普通的非静态函数了，就不需要通过虚指针以及虚表来判断到底执行哪一个类中的virFun函数了。
+
+
+

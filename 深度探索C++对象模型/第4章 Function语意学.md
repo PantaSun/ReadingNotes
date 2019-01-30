@@ -207,3 +207,62 @@ ptr = new Point3d; // 继承自Point2d
 
 
 ### 多继承下的虚函数
+
+多继承下的主要难点就是如何处理第二个以及更多的基类和如何在执行期间调整this指针。
+
+假设有两个基类和一个继承自这两个基类的派生类：
+
+```c++
+class Base1
+{
+ public:
+    Base1();
+    virtual ~Base1();
+    virtual Base1 *clone() const;
+ protected:
+    float data_Base1;
+};
+
+class Base2
+{
+ public:
+    Base2();
+    virtual ~Base2();
+    virtual Base2 *clone() const;
+ protected:
+    float data_Base2;
+};
+
+class Derived:public Base1, public Base2
+{
+public:
+	Derived();
+	virtual ~Derived();
+	virtual Derived *clone() const;
+protected:
+	float data_Derived;
+};
+```
+
+在上代码中，Base1 subobject 和Derived object的地址是一样子的，编译器在编译期间改写Base1的virtual function实体。唯一复杂的是Base2 subobject，如果通过Base1或者Derived object来使用Base2，那么编译器需要修改this指针的offset，通过增加sizeof(Base1)来更新this指针以便正确的访问到Base2 subobject，与此相同的如果使用的是Base2指针来访问Base1或者derived，那么这时候就需要减少sizeof(Base2)来修改offset。
+
+经由指向“第二或后继基类”的指针或引用来调用派生类的虚函数时，其所连带的必要的“调整this指针”的操作，必须在执行期完成。也就是说offset的大小以及把offset加到this指针的这一段代码必须由编译器在某个地方插入。
+
+如果是不需要计算offset的virtual function的直接就是在slot中找到函数实体，而如果是需要计算offset的，那么就通过thunk技术来确定真正的virtual funtion函数实体位置。
+
+thunk技术即通过一小段assembly代码来跳转到指定的位置执行：
+
+- 以offset值调整this指针
+- 跳转到虚函数去
+
+举例：经由一个Base2指针调用Derived destructor，其相关的thunk可能是如下这样：
+
+```C++
+// 伪代码
+pbase2_dtor_thunk:
+	this += sizeof(base1);
+	Derived::~Derived(this);
+```
+
+
+

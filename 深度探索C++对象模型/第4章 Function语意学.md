@@ -131,9 +131,9 @@ unsigned int(Point3d::*)()
 
 ```c++
 Point * ptr;	   // Point是一个基类，其中有个虚函数z()
-ptr = new Point2d; // 继承自Point
+ptr = new Point2d; // Point2继承自Point
 // 或者是
-ptr = new Point3d; // 继承自Point2d
+ptr = new Point3d; // Point3继承自Point2d
 ```
 
 
@@ -244,7 +244,7 @@ protected:
 };
 ```
 
-在上代码中，Base1 subobject 和Derived object的地址是一样子的，编译器在编译期间改写Base1的virtual function实体。唯一复杂的是Base2 subobject，如果通过Base1或者Derived object来使用Base2，那么编译器需要修改this指针的offset，通过增加sizeof(Base1)来更新this指针以便正确的访问到Base2 subobject，与此相同的如果使用的是Base2指针来访问Base1或者derived，那么这时候就需要减少sizeof(Base2)来修改offset。
+在上代码中，Base1 subobject 和Derived object的地址是一样子的，编译器在编译期间改写Base1的virtual function实体。唯一复杂的是Base2 subobject，如果通过Base1或者Derived object来使用Base2，那么编译器需要修改this指针的offset，通过增加sizeof(Base1)来更新this指针以便正确的访问到Base2 subobject，与此相同的如果使用的是Base2指针来访问Base1或者derived，那么这时候就需要减少sizeof(Base1)来修改offset。
 
 经由指向“第二或后继基类”的指针或引用来调用派生类的虚函数时，其所连带的必要的“调整this指针”的操作，必须在执行期完成。也就是说offset的大小以及把offset加到this指针的这一段代码必须由编译器在某个地方插入。
 
@@ -266,3 +266,85 @@ pbase2_dtor_thunk:
 
 
 
+## 指向成员函数的指针
+
+### 指向nonstatic member function 的指针
+
+取一个非静态成员函数的地址得到的是该函数在内存中地址，但该地址不能直接使用，要配合类对象使用，即要绑定到类的某个对象上，因为所有的非静态成员函数都需要其类对象的地址，这个地址通常用this指针给出。
+
+假设有一个类：
+
+```c++
+class Point{
+    public:
+    double x(){return _x;}
+    double y(){return _y;}
+    virtual double z(){return 0.0;}
+    private:
+    double _x,_y;
+};
+```
+
+则一个指向非静态成员函数的指针可以这样定义：
+
+```c++
+double (Point::*coord)() = &Point::x;
+// double是返回值类型
+// Point::表示该成员函数所属的类
+// coord表示指针名称
+// () 最后的括号表示参数列表，因为原函数参数列表为空，所以这里只是一个括号
+
+//也可以这样指定其值
+coord = &Point::y;
+```
+
+想要通过这个指针调用非静态成员函数的方法：
+
+```c++
+// 先建立一个对象和一个指向对象的指针
+// 因为非静态成员函数必须通过对象来调用
+Point origin;
+Point * ptr = new Point;
+// 调用
+(origin.*coord)();
+(ptr->*coord)();
+// 这些调用会转化为：
+(coord)(&origin);
+(coord)(ptr);
+```
+
+### 指向虚成员函数的指针
+
+指向虚函数的指针仍然可以保持虚拟机制（多态机制）。
+
+由于支持多态机制，所以一个虚函数在编译期间其地址是未知的，因此取一个虚成员函数的地址能获得的只是一个索引值。
+
+所以对于一个指向成员函数的指针来说，即能保存非虚非静态成员函数的地址，也能保存虚函数的索引值；更重要的是编译器还要能区分出该指针指向的到底是哪一种值。
+
+### 多继承下的指向成员函数的指针
+
+有一种设计是使用一种一般化的方式来当做指针所指向的值。使用一个结构体的方式，该结构体针对不同的函数存放不同的值。
+
+## inline 函数
+
+关键字inline只是一项请求，若这项请求被接受，编译器就必须认为它可以用一个表达是合理的将这个函数扩展开来。
+
+若某个函数的执行成本比一般的函数调用及返回机制所带来的负荷低，那么编译器相信该函数可以合理地扩展为一个inline函数。
+
+编译器有一套复杂的测试方法，通常用来计算assignments、function calls、virtual function calls等操作次数。通过这些测试的加权求和之后来决定是否可以扩展为inline 函数。
+
+
+
+### 形式参数的扩展
+
+在inline扩展期间，每一个形参都被替换为实际的参数。为了防止“会带来副作用的实际参数”，通常会有如下几种情况：
+
+1. 如果是一个常量表达式，那么直接用常量替换
+2. 如果是一个“带副作用的实际参数”，那么就需要引入临时性对象
+3. 如果不是上述的情况那么直接替换之
+
+副作用比如对实际参数的多次求值操作。
+
+### 局部变量
+
+一般来说inline函数的每一局部变量都必须放在函数调用的一个封闭区段中，拥有独一无二的名称。如果inline函数以一个表达式扩展多次，则每次扩展都需要自己的一组局部变量。如果inline函数以分离的多个式子被扩展多次，那么只需要一组局部变量，就可以重复使用。

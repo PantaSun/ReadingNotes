@@ -51,7 +51,7 @@ extern float x;
 class Point3d
 {
  public:
-    Point3d(float, float, flaot);
+    Point3d(float, float, float);
     float X()const{return x;}
  private:
     float x, y, z;
@@ -157,11 +157,11 @@ class Point3d
 }
 ```
 
-```
+```c++
 Point3d origin;
 Point3d * pt = &origin;
-origin.x = 0.o;
-pt->x = 0.0
+origin.x = 0.0;
+pt->x = 0.0;
 ```
 
 如上述代码所示，通过一个指向对象的指针和通过该对象来存取member，有什么差异？

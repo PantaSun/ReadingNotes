@@ -339,7 +339,7 @@ class Point2d
 
 到了C++2.0后某些编译器将vptr放置class obbject的头部：这样做的话，“在多重继承下，通过class members的指针调用virtual function”，会有一些帮助。当然这样也就丧失了对C语言的兼容性。
 
-不管放在基类的首段还是尾端，派生类继承后也会保持vptr与基类成员之间的顺序，比如基类中是将vptr放在尾端，那么在派生类是放在派生类中基类部分的尾端而不是整个派生类对象尾端。无论继承多少次 vptr 在所有的 base class 对象或者 derived class 对象中都只有一份！并且位置都相同，但是它们（vptr）指向的 virtual table 不相同！都指向内存中各自的 virual table， 调用时分别从各自的 virtual table 中找 virtual functions 的地址进行调用，即实现了多态的机制。
+不管放在基类的首段还是尾端，派生类继承后也会保持vptr与基类成员之间的顺序，比如基类中是将vptr放在尾端，那么在派生类中vptr是放在派生类中基类部分的尾端而不是整个派生类对象尾端。无论继承多少次 vptr 在所有的 base class 对象或者 derived class 对象中都只有一份！并且位置都相同，但是它们（vptr）指向的 virtual table 不相同！都指向内存中各自的 virual table， 调用时分别从各自的 virtual table 中找 virtual functions 的地址进行调用，即实现了多态的机制。
 
 ### 多重继承
 
